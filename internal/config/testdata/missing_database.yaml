@@ -1,5 +1,3 @@
-# API Service Configuration
-
 server:
   port: 8080
   read_timeout: 10s
@@ -12,7 +10,7 @@ database:
   port: 5432
   user: postgres
   password: postgres
-  database: jobs_db
+  database: ""
   sslmode: disable
   max_open_conns: 25
   max_idle_conns: 5
@@ -25,6 +23,12 @@ rabbitmq:
   user: guest
   password: guest
   vhost: /
+  routing_key: job.created
+  connection:
+    retry_attempts: 5
+    retry_interval: 5s
+    heartbeat: 30s
+    connection_timeout: 10s
   exchange:
     name: jobs_exchange
     type: direct
@@ -35,21 +39,14 @@ rabbitmq:
     durable: true
     auto_delete: false
     exclusive: false
-  routing_key: job.created
-  connection:
-    retry_attempts: 5
-    retry_interval: 5s
-    heartbeat: 10s
-    connection_timeout: 30s
 
 logging:
-  level: debug  # debug, info, warn, error, fatal
-  format: console  # json, console
+  level: debug
+  format: json
   output: stdout
   enable_caller: true
-  enable_stack_trace: false
 
 app:
   name: job-api-service
   version: 1.0.0
-  environment: development  # development, staging, production
+  environment: development

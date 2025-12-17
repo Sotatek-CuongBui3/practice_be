@@ -1,0 +1,6 @@
+server:
+  port: 8080
+  read_timeout: 10s
+  write_timeout: 10s
+    invalid_indentation: true
+  idle_timeout: 120s
