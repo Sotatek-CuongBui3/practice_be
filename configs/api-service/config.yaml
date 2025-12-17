@@ -1,0 +1,55 @@
+# API Service Configuration
+
+server:
+  port: 8080
+  read_timeout: 10s
+  write_timeout: 10s
+  idle_timeout: 120s
+  shutdown_timeout: 30s
+
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  database: jobs_db
+  sslmode: disable
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+  conn_max_idle_time: 10m
+
+rabbitmq:
+  host: localhost
+  port: 5672
+  user: guest
+  password: guest
+  vhost: /
+  exchange:
+    name: jobs_exchange
+    type: direct
+    durable: true
+    auto_delete: false
+  queue:
+    name: jobs_queue
+    durable: true
+    auto_delete: false
+    exclusive: false
+  routing_key: job.created
+  connection:
+    retry_attempts: 5
+    retry_interval: 5s
+    heartbeat: 10s
+    connection_timeout: 30s
+
+logging:
+  level: debug  # debug, info, warn, error, fatal
+  format: json  # json, console
+  output: stdout
+  enable_caller: true
+  enable_stack_trace: false
+
+app:
+  name: job-api-service
+  version: 1.0.0
+  environment: development  # development, staging, production
