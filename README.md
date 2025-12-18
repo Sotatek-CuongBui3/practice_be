@@ -1,6 +1,6 @@
 # Background Job Processing System
 
-[![CI](https://github.com/cuongbtq/practice-be/workflows/CI/badge.svg)](https://github.com/cuongbtq/practice-be/actions)
+[![CI](https://github.com/cuongbtq/practice-be/actions/workflows/ci.yml/badge.svg)](https://github.com/cuongbtq/practice-be/actions)
 [![Go Report Card](https://goreportcard.com/badge/github.com/cuongbtq/practice-be)](https://goreportcard.com/report/github.com/cuongbtq/practice-be)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
