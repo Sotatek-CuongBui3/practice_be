@@ -1,0 +1,34 @@
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v4.5.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+        args: ['--unsafe']
+      - id: check-added-large-files
+        args: ['--maxkb=1000']
+      - id: check-merge-conflict
+      - id: mixed-line-ending
+
+  - repo: local
+    hooks:
+      - id: golangci-lint
+        name: golangci-lint
+        entry: golangci-lint run --fix
+        types: [go]
+        language: system
+        pass_filenames: false
+        
+      - id: go-fmt
+        name: go-fmt
+        entry: gofmt -w
+        types: [go]
+        language: system
+        
+      - id: go-test
+        name: go-test
+        entry: go test -short ./...
+        types: [go]
+        language: system
+        pass_filenames: false

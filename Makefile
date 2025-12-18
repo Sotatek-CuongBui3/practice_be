@@ -1,4 +1,4 @@
-.PHONY: help build run-api test test-unit test-coverage test-verbose test-config test-logger test-clean clean migrate-up migrate-down migrate-create docker-up docker-down dev
+.PHONY: help build run-api test test-unit test-coverage test-verbose test-config test-logger test-clean clean migrate-up migrate-down migrate-create docker-up docker-down dev ci-lint ci-test ci-build ci install-lint
 
 # Load environment variables from .env file
 include .env
@@ -39,6 +39,13 @@ help:
 	@echo "  make migrate-up    - Run database migrations"
 	@echo "  make migrate-down  - Rollback last migration"
 	@echo "  make migrate-create NAME=migration_name - Create new migration files"
+	@echo ""
+	@echo "CI/CD:"
+	@echo "  make ci            - Run all CI checks locally"
+	@echo "  make ci-lint       - Run linter"
+	@echo "  make ci-test       - Run tests for CI"
+	@echo "  make ci-build      - Build for CI"
+	@echo "  make install-lint  - Install golangci-lint"
 	@echo ""
 
 ## build: Build the API service binary
@@ -168,6 +175,37 @@ install-tools:
 	@go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 	@go install github.com/cosmtrek/air@latest
 	@echo "Tools installed"
+
+## install-lint: Install golangci-lint
+install-lint:
+	@echo "Installing golangci-lint..."
+	@which golangci-lint > /dev/null || curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(shell go env GOPATH)/bin latest
+	@echo "golangci-lint installed"
+
+## ci-lint: Run linter (CI)
+ci-lint:
+	@echo "Running linter..."
+	@golangci-lint run --timeout=5m
+
+## ci-test: Run tests for CI environment
+ci-test:
+	@echo "Running tests with coverage..."
+	@go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
+
+## ci-build: Build for CI
+ci-build:
+	@echo "Building for CI..."
+	@mkdir -p $(BINARY_DIR)
+	@go build -v -o ./$(BINARY_DIR)/$(BINARY_NAME) ./cmd/api-service/main.go
+	@echo "Build complete: $(BINARY_DIR)/$(BINARY_NAME)"
+
+## ci: Run all CI checks locally
+ci: ci-lint ci-test ci-build
+	@echo ""
+	@echo "✅ All CI checks passed!"
+	@echo ""
+	@echo "Coverage report: coverage.out"
+	@go tool cover -func=coverage.out | grep total:
 
 ## setup: Initial project setup
 setup: install-tools docker-up
