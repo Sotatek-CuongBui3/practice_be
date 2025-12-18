@@ -143,12 +143,12 @@ CREATE TABLE job_history (
 
 ### Base URL
 ```
-http://localhost:8080/v1
+http://localhost:8080/api/v1
 ```
 
 ### 1. Create Job
 
-**Endpoint:** `POST /v1/jobs`
+**Endpoint:** `POST /api/v1/jobs`
 
 **Description:** Submit a new background job for processing. Supports idempotency via optional idempotency key.
 
@@ -203,7 +203,7 @@ X-Idempotency-Key: <optional-unique-key>
 
 ### 2. Get Job Status
 
-**Endpoint:** `GET /v1/jobs/{job_id}`
+**Endpoint:** `GET /api/v1/jobs/{job_id}`
 
 **Description:** Retrieve detailed information about a specific job.
 
@@ -242,7 +242,7 @@ X-Idempotency-Key: <optional-unique-key>
 
 ### 3. List Jobs
 
-**Endpoint:** `GET /v1/jobs`
+**Endpoint:** `GET /api/v1/jobs`
 
 **Description:** List jobs with optional filtering and pagination.
 
@@ -256,7 +256,7 @@ X-Idempotency-Key: <optional-unique-key>
 
 **Example Request:**
 ```
-GET /v1/jobs?status=COMPLETED&limit=20&offset=0
+GET /api/v1/jobs?status=COMPLETED&limit=20&offset=0
 ```
 
 **Response (200 OK):**
@@ -292,7 +292,7 @@ GET /v1/jobs?status=COMPLETED&limit=20&offset=0
 
 ### 4. Cancel Job
 
-**Endpoint:** `POST /v1/jobs/{job_id}/cancel`
+**Endpoint:** `POST /api/v1/jobs/{job_id}/cancel`
 
 **Description:** Cancel a pending or running job. Signals the worker to stop execution and updates the job status to CANCELED. Completed jobs cannot be canceled.
 
@@ -323,7 +323,7 @@ GET /v1/jobs?status=COMPLETED&limit=20&offset=0
 
 ### 5. Delete Job
 
-**Endpoint:** `DELETE /v1/jobs/{job_id}`
+**Endpoint:** `DELETE /api/v1/jobs/{job_id}`
 
 **Description:** Permanently delete a job record from the database. Only jobs in terminal states (COMPLETED, FAILED, CANCELED) can be deleted.
 
@@ -387,7 +387,7 @@ GET /v1/jobs?status=COMPLETED&limit=20&offset=0
                               │ FAILED   │ (final)
                               └──────────┘
 
-Note: CANCELED can be triggered from any state via POST /v1/jobs/{id}/cancel API
+Note: CANCELED can be triggered from any state via POST /api/v1/jobs/{id}/cancel API
 ```
 
 ### State Transitions
@@ -467,7 +467,7 @@ Note: CANCELED can be triggered from any state via POST /v1/jobs/{id}/cancel API
 
 6. **Test the API**
    ```bash
-   curl -X POST http://localhost:8080/v1/jobs \
+   curl -X POST http://localhost:8080/api/v1/jobs \
      -H "Content-Type: application/json" \
      -H "X-Idempotency-Key: test-key-001" \
      -d '{

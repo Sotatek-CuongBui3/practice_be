@@ -11,11 +11,12 @@ import (
 
 // Config holds logger configuration
 type Config struct {
-	Level        string // debug, info, warn, error
-	Format       string // json, console
-	Output       string // stdout, stderr, or file path
-	EnableSource bool   // Enable source code location
-	TimeFormat   string // Time format for console output
+	Level        string    // debug, info, warn, error
+	Format       string    // json, console
+	Output       string    // stdout, stderr, or file path
+	EnableSource bool      // Enable source code location
+	TimeFormat   string    // Time format for console output
+	writer       io.Writer // Optional writer for testing (not exported)
 }
 
 // Logger wraps slog.Logger
@@ -28,14 +29,20 @@ func New(config *Config) (*Logger, error) {
 	level := parseLevel(config.Level)
 
 	var writer io.Writer
-	switch config.Output {
-	case "stderr":
-		writer = os.Stderr
-	case "stdout", "":
-		writer = os.Stdout
-	default:
-		// TODO: Support file output
-		writer = os.Stdout
+
+	// Use test writer if provided (for testing)
+	if config.writer != nil {
+		writer = config.writer
+	} else {
+		switch config.Output {
+		case "stderr":
+			writer = os.Stderr
+		case "stdout", "":
+			writer = os.Stdout
+		default:
+			// TODO: Support file output
+			writer = os.Stdout
+		}
 	}
 
 	var handler slog.Handler

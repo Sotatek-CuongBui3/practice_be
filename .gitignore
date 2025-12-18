@@ -1,1 +1,11 @@
+.env
+
 **/.vscode/*
+*phase*
+**/bin/*
+
+# Test artifacts
+coverage.out
+coverage.html
+*.test
+*.prof
