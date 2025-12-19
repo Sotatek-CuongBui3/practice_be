@@ -1,4 +1,4 @@
-.PHONY: help build run-api test test-unit test-coverage test-verbose test-config test-logger test-clean clean migrate-up migrate-down migrate-create docker-up docker-down dev ci-lint ci-test ci-build ci install-lint
+.PHONY: help build build-api build-worker run-api run-worker test test-unit test-coverage test-verbose test-config test-logger test-clean clean migrate-up migrate-down migrate-create docker-up docker-down dev ci-lint ci-test ci-build ci-build-api ci-build-worker ci install-lint
 
 # Load environment variables from .env file
 include .env
@@ -6,8 +6,10 @@ export
 
 # Variables
 APP_NAME=job-api-service
+WORKER_NAME=job-worker-service
 BINARY_DIR=bin
-BINARY_NAME=api-service
+API_BINARY_NAME=api-service
+WORKER_BINARY_NAME=worker-service
 DOCKER_COMPOSE=docker compose -f docker/docker-compose.yml
 MIGRATIONS_DIR=migrations
 DATABASE_URL=postgresql://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST):$(DATABASE_PORT)/$(DATABASE_NAME)?sslmode=$(DATABASE_SSLMODE)
@@ -15,8 +17,11 @@ DATABASE_URL=postgresql://$(DATABASE_USER):$(DATABASE_PASSWORD)@$(DATABASE_HOST)
 ## help: Display this help message
 help:
 	@echo "Available commands:"
-	@echo "  make build         - Build the API service binary"
+	@echo "  make build         - Build all services (API + Worker)"
+	@echo "  make build-api     - Build the API service binary"
+	@echo "  make build-worker  - Build the Worker service binary"
 	@echo "  make run-api       - Run the API service"
+	@echo "  make run-worker    - Run the Worker service"
 	@echo ""
 	@echo "Testing:"
 	@echo "  make test          - Run all tests with coverage"
@@ -44,21 +49,39 @@ help:
 	@echo "  make ci            - Run all CI checks locally"
 	@echo "  make ci-lint       - Run linter"
 	@echo "  make ci-test       - Run tests for CI"
-	@echo "  make ci-build      - Build for CI"
+	@echo "  make ci-build      - Build all services for CI"
+	@echo "  make ci-build-api  - Build API service for CI"
+	@echo "  make ci-build-worker - Build Worker service for CI"
 	@echo "  make install-lint  - Install golangci-lint"
 	@echo ""
 
-## build: Build the API service binary
-build:
+## build: Build all services
+build: build-api build-worker
+	@echo "All services built successfully"
+
+## build-api: Build the API service binary
+build-api:
 	@echo "Building $(APP_NAME)..."
 	@mkdir -p $(BINARY_DIR)
-	@go build -o ./$(BINARY_DIR)/$(BINARY_NAME) ./cmd/api-service/main.go
-	@echo "Build complete: $(BINARY_DIR)/$(BINARY_NAME)"
+	@go build -o ./$(BINARY_DIR)/$(API_BINARY_NAME) ./cmd/api-service/main.go
+	@echo "Build complete: $(BINARY_DIR)/$(API_BINARY_NAME)"
+
+## build-worker: Build the Worker service binary
+build-worker:
+	@echo "Building $(WORKER_NAME)..."
+	@mkdir -p $(BINARY_DIR)
+	@go build -o ./$(BINARY_DIR)/$(WORKER_BINARY_NAME) ./cmd/worker-service/main.go
+	@echo "Build complete: $(BINARY_DIR)/$(WORKER_BINARY_NAME)"
 
 ## run-api: Run the API service
 run-api:
 	@echo "Starting $(APP_NAME)..."
 	@go run cmd/api-service/main.go
+
+## run-worker: Run the Worker service
+run-worker:
+	@echo "Starting $(WORKER_NAME)..."
+	@go run cmd/worker-service/main.go
 
 ## test: Run tests
 test:
@@ -192,12 +215,23 @@ ci-test:
 	@echo "Running tests with coverage..."
 	@go test -v -race -coverprofile=coverage.out -covermode=atomic ./...
 
-## ci-build: Build for CI
-ci-build:
-	@echo "Building for CI..."
+## ci-build: Build all services for CI
+ci-build: ci-build-api ci-build-worker
+	@echo "All services built for CI"
+
+## ci-build-api: Build API service for CI
+ci-build-api:
+	@echo "Building API service for CI..."
 	@mkdir -p $(BINARY_DIR)
-	@go build -v -o ./$(BINARY_DIR)/$(BINARY_NAME) ./cmd/api-service/main.go
-	@echo "Build complete: $(BINARY_DIR)/$(BINARY_NAME)"
+	@go build -v -o ./$(BINARY_DIR)/$(API_BINARY_NAME) ./cmd/api-service/main.go
+	@echo "API build complete: $(BINARY_DIR)/$(API_BINARY_NAME)"
+
+## ci-build-worker: Build Worker service for CI
+ci-build-worker:
+	@echo "Building Worker service for CI..."
+	@mkdir -p $(BINARY_DIR)
+	@go build -v -o ./$(BINARY_DIR)/$(WORKER_BINARY_NAME) ./cmd/worker-service/main.go
+	@echo "Worker build complete: $(BINARY_DIR)/$(WORKER_BINARY_NAME)"
 
 ## ci: Run all CI checks locally
 ci: ci-lint ci-test ci-build

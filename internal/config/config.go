@@ -22,6 +22,7 @@ type Config struct {
 	RabbitMQ RabbitMQConfig `yaml:"rabbitmq"`
 	Logging  LoggingConfig  `yaml:"logging"`
 	App      AppConfig      `yaml:"app"`
+	Worker   WorkerConfig   `yaml:"worker"`
 }
 
 // ServerConfig holds HTTP server configuration
@@ -98,6 +99,16 @@ type AppConfig struct {
 	Name        string `yaml:"name"`
 	Version     string `yaml:"version"`
 	Environment string `yaml:"environment"`
+}
+
+// WorkerConfig holds worker service configuration
+type WorkerConfig struct {
+	Concurrency       int           `yaml:"concurrency"`
+	MaxJobs           int           `yaml:"max_jobs"`
+	PollInterval      time.Duration `yaml:"poll_interval"`
+	JobTimeout        time.Duration `yaml:"job_timeout"`
+	HeartbeatInterval time.Duration `yaml:"heartbeat_interval"`
+	ShutdownTimeout   time.Duration `yaml:"shutdown_timeout"`
 }
 
 // Load reads and parses the configuration file

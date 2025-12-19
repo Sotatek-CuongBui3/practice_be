@@ -1,0 +1,79 @@
+# Worker Service Configuration
+
+app:
+  name: job-worker-service
+  version: 1.0.0
+  environment: development
+
+worker:
+  # Number of concurrent workers
+  concurrency: 5
+  # Maximum number of jobs to process before restart
+  max_jobs: 1000
+  # Interval between polling for jobs (if not using RabbitMQ)
+  poll_interval: 5s
+  # Job execution timeout
+  job_timeout: 5m
+  # Heartbeat interval for job status updates
+  heartbeat_interval: 30s
+  # Shutdown timeout for graceful shutdown
+  shutdown_timeout: 30s
+
+database:
+  host: localhost
+  port: 5432
+  user: postgres
+  password: postgres
+  database: jobs_db
+  sslmode: disable
+  max_open_conns: 25
+  max_idle_conns: 5
+  conn_max_lifetime: 5m
+  conn_max_idle_time: 10m
+
+rabbitmq:
+  host: localhost
+  port: 5672
+  user: guest
+  password: guest
+  vhost: /
+  exchange:
+    name: jobs_exchange
+    type: direct
+    durable: true
+    auto_delete: false
+  queue:
+    name: jobs_queue
+    durable: true
+    auto_delete: false
+    exclusive: false
+  routing_key: job.created
+  connection:
+    retry_attempts: 5
+    retry_interval: 5s
+    heartbeat: 10s
+    connection_timeout: 30s
+  consumer:
+    # Number of messages to prefetch
+    prefetch_count: 10
+    # Auto acknowledge messages
+    auto_ack: false
+    # Consume exclusively
+    exclusive: false
+
+retry:
+  # Maximum retry attempts for failed jobs
+  max_attempts: 3
+  # Initial backoff duration
+  initial_interval: 5s
+  # Maximum backoff duration
+  max_interval: 5m
+  # Backoff multiplier
+  multiplier: 2.0
+
+logging:
+  level: debug  # debug, info, warn, error, fatal
+  format: console  # json, console
+  output: stdout
+  enable_caller: true
+  enable_stack_trace: false
