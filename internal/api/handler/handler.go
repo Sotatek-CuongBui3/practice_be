@@ -3,6 +3,7 @@ package handler
 import (
 	"log/slog"
 
+	"github.com/cuongbtq/practice-be/internal/api/storage"
 	"github.com/cuongbtq/practice-be/shared/postgresql"
 	"github.com/cuongbtq/practice-be/shared/rabbitmq"
 )
@@ -17,15 +18,15 @@ type Dependencies struct {
 // JobHandler handles job-related HTTP requests
 type JobHandler struct {
 	logger       *slog.Logger
-	dbClient     *postgresql.Client
 	rabbitClient *rabbitmq.Client
+	storage      *storage.Storage
 }
 
 // NewJobHandler creates a new JobHandler instance
 func NewJobHandler(deps *Dependencies) *JobHandler {
 	return &JobHandler{
 		logger:       deps.Logger,
-		dbClient:     deps.DBClient,
 		rabbitClient: deps.RabbitClient,
+		storage:      storage.NewStorage(deps.DBClient),
 	}
 }

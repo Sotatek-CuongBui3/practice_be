@@ -6,7 +6,7 @@ CREATE TABLE IF NOT EXISTS job_history (
     status_to     VARCHAR(20) NOT NULL,
     worker_id     VARCHAR(100),
     error_message TEXT,
-    created_at    TIMESTAMP NOT NULL DEFAULT NOW()
+    created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
 -- Create index for efficient job history queries

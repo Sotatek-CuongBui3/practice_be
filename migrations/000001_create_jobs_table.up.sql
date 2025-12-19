@@ -15,11 +15,11 @@ CREATE TABLE IF NOT EXISTS jobs (
     max_retries       INTEGER DEFAULT 3,
     timeout_seconds   INTEGER DEFAULT 300,
     progress          INTEGER DEFAULT 0,
-    created_at        TIMESTAMP NOT NULL DEFAULT NOW(),
-    updated_at        TIMESTAMP NOT NULL DEFAULT NOW(),
-    started_at        TIMESTAMP,
-    completed_at      TIMESTAMP,
-    last_heartbeat_at TIMESTAMP,
+    created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    started_at        TIMESTAMPTZ,
+    completed_at      TIMESTAMPTZ,
+    last_heartbeat_at TIMESTAMPTZ,
     callback_url      VARCHAR(500)
 );
 
