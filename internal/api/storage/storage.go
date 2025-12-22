@@ -2,9 +2,12 @@ package storage
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"fmt"
 	"time"
 
+	"github.com/cuongbtq/practice-be/internal/api/domain"
 	"github.com/cuongbtq/practice-be/internal/api/model"
 	"github.com/cuongbtq/practice-be/shared/postgresql"
 	"github.com/jmoiron/sqlx"
@@ -65,6 +68,10 @@ func (s *Storage) GetJobByID(ctx context.Context, jobID string) (*model.Job, err
 
 	err := s.db.GetContext(ctx, &job, query, jobID)
 	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, domain.ErrJobNotFound
+		}
+
 		return nil, fmt.Errorf("failed to get job: %w", err)
 	}
 

@@ -2,10 +2,12 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/cuongbtq/practice-be/internal/api/domain"
 	"github.com/cuongbtq/practice-be/internal/api/dto"
 	"github.com/cuongbtq/practice-be/internal/api/model"
 	"github.com/cuongbtq/practice-be/internal/api/storage"
@@ -44,24 +46,6 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		return
 	}
 
-	// Validate JobType
-	if req.JobType == "" {
-		h.logger.Error("JobType is required")
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "JobType is required",
-		})
-		return
-	}
-
-	// Validate UserID
-	if req.UserID == "" {
-		h.logger.Error("UserID is required")
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "UserID is required",
-		})
-		return
-	}
-
 	// 2. Check idempotency key
 
 	job := model.Job{
@@ -80,33 +64,32 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 	if err != nil {
 		h.logger.Error("Failed to create job", slog.String("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to create job",
-			"details": err.Error(),
+			"error": "Failed to create job",
 		})
 		return
 	}
 
-	// 4. Publish message to RabbitMQ
-	err = h.rabbitClient.Publish(c.Request.Context(), []byte(req.Payload), "application/json")
-	if err != nil {
-		h.logger.Error("Failed to publish job to RabbitMQ", slog.String("error", err.Error()))
-		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to publish job",
-			"details": err.Error(),
-		})
-		return
-	}
+	// 4. Publish message to RabbitMQ (Implement later)
+	// err = h.rabbitClient.Publish(c.Request.Context(), []byte(req.Payload), "application/json")
+	// if err != nil {
+	// 	h.logger.Error("Failed to publish job to RabbitMQ", slog.String("error", err.Error()))
+	// 	c.JSON(http.StatusInternalServerError, gin.H{
+	// 		"error":   "Failed to publish job",
+	// 		"details": err.Error(),
+	// 	})
+	// 	return
+	// }
 
 	// 5. Return job response
-	c.JSON(http.StatusCreated, gin.H{
-		"job_id":          job.JobID,
-		"idempotency_key": job.IdempotencyKey,
-		"user_id":         job.UserID,
-		"job_type":        job.JobType,
-		"payload":         job.Payload,
-		"status":          job.Status,
-		"created_at":      job.CreatedAt,
-		"updated_at":      job.UpdatedAt,
+	c.JSON(http.StatusCreated, dto.JobDTO{
+		JobID:          job.JobID,
+		IdempotencyKey: job.IdempotencyKey,
+		UserID:         job.UserID,
+		JobType:        job.JobType,
+		Payload:        job.Payload,
+		Status:         job.Status,
+		CreatedAt:      job.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      job.UpdatedAt.Format(time.RFC3339),
 	})
 }
 
@@ -114,13 +97,6 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 // Retrieves detailed information about a specific job
 func (h *JobHandler) GetJob(c *gin.Context) {
 	jobID := c.Param("job_id")
-	if jobID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "job_id is required",
-		})
-		return
-	}
-
 	h.logger.Info("GetJob called",
 		slog.String("method", c.Request.Method),
 		slog.String("path", c.Request.URL.Path),
@@ -139,6 +115,14 @@ func (h *JobHandler) GetJob(c *gin.Context) {
 	// 2. Query job from database
 	job, err := h.storage.GetJobByID(c.Request.Context(), jobID)
 	if err != nil {
+		if errors.Is(err, domain.ErrJobNotFound) {
+			h.logger.Error("Job not found", slog.String("job_id", jobID))
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Job not found",
+			})
+			return
+		}
+
 		h.logger.Error("Failed to get job", slog.String("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get job",
@@ -147,15 +131,15 @@ func (h *JobHandler) GetJob(c *gin.Context) {
 	}
 
 	// 3. Return job details
-	c.JSON(http.StatusOK, gin.H{
-		"job_id":          job.JobID,
-		"idempotency_key": job.IdempotencyKey,
-		"user_id":         job.UserID,
-		"job_type":        job.JobType,
-		"payload":         job.Payload,
-		"status":          job.Status,
-		"created_at":      job.CreatedAt,
-		"updated_at":      job.UpdatedAt,
+	c.JSON(http.StatusOK, dto.JobDTO{
+		JobID:          job.JobID,
+		IdempotencyKey: job.IdempotencyKey,
+		UserID:         job.UserID,
+		JobType:        job.JobType,
+		Payload:        job.Payload,
+		Status:         job.Status,
+		CreatedAt:      job.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      job.UpdatedAt.Format(time.RFC3339),
 	})
 }
 
@@ -182,7 +166,7 @@ func (h *JobHandler) ListJobs(c *gin.Context) {
 
 	// 2. Validate parameters
 	if req.PageSize <= 0 {
-		req.PageSize = 20
+		req.PageSize = 10
 	}
 
 	if req.PageSize > 100 {
