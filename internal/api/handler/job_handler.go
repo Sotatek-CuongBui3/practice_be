@@ -20,7 +20,7 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 	// 2. Check idempotency key
 	// 3. Create job record in database
 	// 4. Publish message to RabbitMQ
-	// 5. Return job response
+	// 5. Return job creation response
 
 	c.JSON(http.StatusNotImplemented, gin.H{
 		"message": "CreateJob endpoint - Not implemented yet",
