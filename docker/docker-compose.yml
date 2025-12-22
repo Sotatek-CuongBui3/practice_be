@@ -6,6 +6,7 @@ services:
       POSTGRES_USER: ${DATABASE_USER:-postgres}
       POSTGRES_PASSWORD: ${DATABASE_PASSWORD:-postgres}
       POSTGRES_DB: ${DATABASE_NAME:-jobs_db}
+      TZ: ${TZ:-UTC}
     ports:
       - "${DATABASE_PORT:-5432}:5432"
     volumes:
@@ -25,6 +26,7 @@ services:
       RABBITMQ_DEFAULT_USER: ${RABBITMQ_USER:-guest}
       RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
       RABBITMQ_DEFAULT_VHOST: ${RABBITMQ_VHOST:-/}
+      TZ: ${TZ:-UTC}
     ports:
       - "${RABBITMQ_PORT:-5672}:5672"
       - "15672:15672"  # Management UI
