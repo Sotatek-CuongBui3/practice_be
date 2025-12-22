@@ -11,7 +11,7 @@ type ListJobsRequest struct {
 	UserID   string `form:"user_id"`
 	JobType  string `form:"job_type"`
 	Status   string `form:"status"`
-	PageSize int    `form:"page_size,default=10"`
+	PageSize int    `form:"page_size"`
 	Cursor   string `form:"cursor"`
 }
 

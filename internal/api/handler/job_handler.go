@@ -1,10 +1,13 @@
 package handler
 
 import (
+	"encoding/json"
+	"errors"
 	"log/slog"
 	"net/http"
 	"time"
 
+	"github.com/cuongbtq/practice-be/internal/api/domain"
 	"github.com/cuongbtq/practice-be/internal/api/dto"
 	"github.com/cuongbtq/practice-be/internal/api/model"
 	"github.com/cuongbtq/practice-be/internal/api/storage"
@@ -26,10 +29,24 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 	if err := c.ShouldBindJSON(&req); err != nil {
 		h.logger.Error("Invalid request body", slog.String("error", err.Error()))
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid request body",
+			"error":   "Invalid request body",
+			"details": err.Error(),
 		})
 		return
 	}
+
+	// Validate request Payload check if payload is valid JSON
+	var payloadMap map[string]interface{}
+	if err := json.Unmarshal([]byte(req.Payload), &payloadMap); err != nil {
+		h.logger.Error("Invalid JSON payload", slog.String("error", err.Error()))
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid JSON payload",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// 2. Check idempotency key
 
 	job := model.Job{
 		JobID:          uuid.New().String(),
@@ -38,11 +55,10 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		JobType:        req.JobType,
 		Payload:        req.Payload,
 		Status:         "PENDING",
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
 	}
 
-	// 2. Check idempotency key
 	// 3. Create job record in database
 	err := h.storage.CreateJob(c.Request.Context(), &job)
 	if err != nil {
@@ -53,17 +69,27 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		return
 	}
 
-	// 4. Publish message to RabbitMQ
+	// 4. Publish message to RabbitMQ (Implement later)
+	// err = h.rabbitClient.Publish(c.Request.Context(), []byte(req.Payload), "application/json")
+	// if err != nil {
+	// 	h.logger.Error("Failed to publish job to RabbitMQ", slog.String("error", err.Error()))
+	// 	c.JSON(http.StatusInternalServerError, gin.H{
+	// 		"error":   "Failed to publish job",
+	// 		"details": err.Error(),
+	// 	})
+	// 	return
+	// }
+
 	// 5. Return job response
-	c.JSON(http.StatusOK, gin.H{
-		"job_id":          job.JobID,
-		"idempotency_key": job.IdempotencyKey,
-		"user_id":         job.UserID,
-		"job_type":        job.JobType,
-		"payload":         job.Payload,
-		"status":          job.Status,
-		"created_at":      job.CreatedAt,
-		"updated_at":      job.UpdatedAt,
+	c.JSON(http.StatusCreated, dto.JobDTO{
+		JobID:          job.JobID,
+		IdempotencyKey: job.IdempotencyKey,
+		UserID:         job.UserID,
+		JobType:        job.JobType,
+		Payload:        job.Payload,
+		Status:         job.Status,
+		CreatedAt:      job.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      job.UpdatedAt.Format(time.RFC3339),
 	})
 }
 
@@ -71,13 +97,6 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 // Retrieves detailed information about a specific job
 func (h *JobHandler) GetJob(c *gin.Context) {
 	jobID := c.Param("job_id")
-	if jobID == "" {
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "job_id is required",
-		})
-		return
-	}
-
 	h.logger.Info("GetJob called",
 		slog.String("method", c.Request.Method),
 		slog.String("path", c.Request.URL.Path),
@@ -96,6 +115,14 @@ func (h *JobHandler) GetJob(c *gin.Context) {
 	// 2. Query job from database
 	job, err := h.storage.GetJobByID(c.Request.Context(), jobID)
 	if err != nil {
+		if errors.Is(err, domain.ErrJobNotFound) {
+			h.logger.Error("Job not found", slog.String("job_id", jobID))
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": "Job not found",
+			})
+			return
+		}
+
 		h.logger.Error("Failed to get job", slog.String("error", err.Error()))
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Failed to get job",
@@ -104,15 +131,15 @@ func (h *JobHandler) GetJob(c *gin.Context) {
 	}
 
 	// 3. Return job details
-	c.JSON(http.StatusOK, gin.H{
-		"job_id":          job.JobID,
-		"idempotency_key": job.IdempotencyKey,
-		"user_id":         job.UserID,
-		"job_type":        job.JobType,
-		"payload":         job.Payload,
-		"status":          job.Status,
-		"created_at":      job.CreatedAt,
-		"updated_at":      job.UpdatedAt,
+	c.JSON(http.StatusOK, dto.JobDTO{
+		JobID:          job.JobID,
+		IdempotencyKey: job.IdempotencyKey,
+		UserID:         job.UserID,
+		JobType:        job.JobType,
+		Payload:        job.Payload,
+		Status:         job.Status,
+		CreatedAt:      job.CreatedAt.Format(time.RFC3339),
+		UpdatedAt:      job.UpdatedAt.Format(time.RFC3339),
 	})
 }
 
@@ -131,14 +158,15 @@ func (h *JobHandler) ListJobs(c *gin.Context) {
 	if err := c.ShouldBindQuery(&req); err != nil {
 		h.logger.Error("Invalid query parameters", slog.String("error", err.Error()))
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Invalid query parameters",
+			"error":   "Invalid query parameters",
+			"details": err.Error(),
 		})
 		return
 	}
 
 	// 2. Validate parameters
 	if req.PageSize <= 0 {
-		req.PageSize = 20
+		req.PageSize = 10
 	}
 
 	if req.PageSize > 100 {
@@ -230,13 +258,13 @@ func (h *JobHandler) CancelJob(c *gin.Context) {
 	)
 
 	// 1. Validate job_id format (UUID)
-	if _, err := uuid.Parse(jobID); err != nil {
-		h.logger.Error("Invalid job_id format", slog.String("job_id", jobID), slog.String("error", err.Error()))
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "job_id must be a valid UUID",
-		})
-		return
-	}
+	// if _, err := uuid.Parse(jobID); err != nil {
+	// 	h.logger.Error("Invalid job_id format", slog.String("job_id", jobID), slog.String("error", err.Error()))
+	// 	c.JSON(http.StatusBadRequest, gin.H{
+	// 		"error": "job_id must be a valid UUID",
+	// 	})
+	// 	return
+	// }
 
 	// TODO: Implement cancel job logic
 	// 2. Check if job can be canceled (not in terminal state)
@@ -263,13 +291,13 @@ func (h *JobHandler) DeleteJob(c *gin.Context) {
 	)
 
 	// 1. Validate job_id format (UUID)
-	if _, err := uuid.Parse(jobID); err != nil {
-		h.logger.Error("Invalid job_id format", slog.String("job_id", jobID), slog.String("error", err.Error()))
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "job_id must be a valid UUID",
-		})
-		return
-	}
+	// if _, err := uuid.Parse(jobID); err != nil {
+	// 	h.logger.Error("Invalid job_id format", slog.String("job_id", jobID), slog.String("error", err.Error()))
+	// 	c.JSON(http.StatusBadRequest, gin.H{
+	// 		"error": "job_id must be a valid UUID",
+	// 	})
+	// 	return
+	// }
 
 	// TODO: Implement delete job logic
 	// 2. Check if job is in terminal state (COMPLETED, FAILED, CANCELED)
