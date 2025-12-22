@@ -233,13 +233,13 @@ func (h *JobHandler) CancelJob(c *gin.Context) {
 	)
 
 	// 1. Validate job_id format (UUID)
-	if _, err := uuid.Parse(jobID); err != nil {
-		h.logger.Error("Invalid job_id format", slog.String("job_id", jobID), slog.String("error", err.Error()))
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "job_id must be a valid UUID",
-		})
-		return
-	}
+	// if _, err := uuid.Parse(jobID); err != nil {
+	// 	h.logger.Error("Invalid job_id format", slog.String("job_id", jobID), slog.String("error", err.Error()))
+	// 	c.JSON(http.StatusBadRequest, gin.H{
+	// 		"error": "job_id must be a valid UUID",
+	// 	})
+	// 	return
+	// }
 
 	// TODO: Implement cancel job logic
 	// 2. Check if job can be canceled (not in terminal state)
@@ -266,13 +266,13 @@ func (h *JobHandler) DeleteJob(c *gin.Context) {
 	)
 
 	// 1. Validate job_id format (UUID)
-	if _, err := uuid.Parse(jobID); err != nil {
-		h.logger.Error("Invalid job_id format", slog.String("job_id", jobID), slog.String("error", err.Error()))
-		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "job_id must be a valid UUID",
-		})
-		return
-	}
+	// if _, err := uuid.Parse(jobID); err != nil {
+	// 	h.logger.Error("Invalid job_id format", slog.String("job_id", jobID), slog.String("error", err.Error()))
+	// 	c.JSON(http.StatusBadRequest, gin.H{
+	// 		"error": "job_id must be a valid UUID",
+	// 	})
+	// 	return
+	// }
 
 	// TODO: Implement delete job logic
 	// 2. Check if job is in terminal state (COMPLETED, FAILED, CANCELED)
