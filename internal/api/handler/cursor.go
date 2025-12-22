@@ -9,11 +9,13 @@ import (
 	"github.com/cuongbtq/practice-be/internal/api/storage"
 )
 
+// DecodeJobCursor decodes a base64-encoded cursor string into a JobCursor struct
 func DecodeJobCursor(cursorStr string) (*storage.JobCursor, error) {
 	if cursorStr == "" {
 		return nil, nil
 	}
 
+	// Decode from base64
 	decoded, err := base64.StdEncoding.DecodeString(cursorStr)
 	if err != nil {
 		return nil, err
@@ -37,7 +39,9 @@ func DecodeJobCursor(cursorStr string) (*storage.JobCursor, error) {
 	}, nil
 }
 
+// EncodeJobCursor encodes a JobCursor struct into a base64-encoded string
 func EncodeJobCursor(cursor *storage.JobCursor) (string, error) {
+	// Encode to base64
 	cs := fmt.Sprintf("%d|%s", cursor.CreatedAt.UnixNano(), cursor.JobID)
 	return base64.StdEncoding.EncodeToString([]byte(cs)), nil
 }

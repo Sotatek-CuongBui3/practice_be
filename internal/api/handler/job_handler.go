@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"encoding/json"
 	"log/slog"
 	"net/http"
 	"time"
@@ -32,6 +33,37 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		return
 	}
 
+	// Validate request Payload check if payload is valid JSON
+	var payloadMap map[string]interface{}
+	if err := json.Unmarshal([]byte(req.Payload), &payloadMap); err != nil {
+		h.logger.Error("Invalid JSON payload", slog.String("error", err.Error()))
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error":   "Invalid JSON payload",
+			"details": err.Error(),
+		})
+		return
+	}
+
+	// Validate JobType
+	if req.JobType == "" {
+		h.logger.Error("JobType is required")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "JobType is required",
+		})
+		return
+	}
+
+	// Validate UserID
+	if req.UserID == "" {
+		h.logger.Error("UserID is required")
+		c.JSON(http.StatusBadRequest, gin.H{
+			"error": "UserID is required",
+		})
+		return
+	}
+
+	// 2. Check idempotency key
+
 	job := model.Job{
 		JobID:          uuid.New().String(),
 		IdempotencyKey: req.IdempotencyKey,
@@ -43,7 +75,6 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		UpdatedAt:      time.Now(),
 	}
 
-	// 2. Check idempotency key
 	// 3. Create job record in database
 	err := h.storage.CreateJob(c.Request.Context(), &job)
 	if err != nil {
@@ -56,6 +87,16 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 	}
 
 	// 4. Publish message to RabbitMQ
+	err = h.rabbitClient.Publish(c.Request.Context(), []byte(req.Payload), "application/json")
+	if err != nil {
+		h.logger.Error("Failed to publish job to RabbitMQ", slog.String("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to publish job",
+			"details": err.Error(),
+		})
+		return
+	}
+
 	// 5. Return job response
 	c.JSON(http.StatusCreated, gin.H{
 		"job_id":          job.JobID,

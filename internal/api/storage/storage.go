@@ -20,6 +20,7 @@ func NewStorage(pg *postgresql.Client) *Storage {
 	}
 }
 
+// CreateJob inserts a new job record into the database
 func (s *Storage) CreateJob(ctx context.Context, job *model.Job) error {
 	query := `
 		INSERT INTO jobs (
@@ -51,6 +52,7 @@ func (s *Storage) CreateJob(ctx context.Context, job *model.Job) error {
 	return nil
 }
 
+// GetJobByID retrieves a job by its JobID
 func (s *Storage) GetJobByID(ctx context.Context, jobID string) (*model.Job, error) {
 	var job model.Job
 	query := `
@@ -82,48 +84,55 @@ type JobCursor struct {
 	JobID     string
 }
 
+// ListJobs retrieves jobs based on the provided filter and pagination cursor
 func (s *Storage) ListJobs(ctx context.Context, filter JobFilter) ([]model.Job, error) {
-	query := `
-        SELECT 
-            job_id, idempotency_key, user_id, job_type,
-            payload, status, created_at, updated_at
-        FROM jobs
-        WHERE 1=1
-    `
-	args := []interface{}{}
-	argIdx := 1
+	var conditions []string
+	var args []interface{}
 
-	// Filters
+	// Build WHERE conditions
 	if filter.UserID != "" {
-		query += fmt.Sprintf(" AND user_id = $%d", argIdx)
+		conditions = append(conditions, "user_id = ?")
 		args = append(args, filter.UserID)
-		argIdx++
 	}
 
 	if filter.JobType != "" {
-		query += fmt.Sprintf(" AND job_type = $%d", argIdx)
+		conditions = append(conditions, "job_type = ?")
 		args = append(args, filter.JobType)
-		argIdx++
 	}
 
 	if filter.Status != "" {
-		query += fmt.Sprintf(" AND status = $%d", argIdx)
+		conditions = append(conditions, "status = ?")
 		args = append(args, filter.Status)
-		argIdx++
 	}
 
 	if filter.Cursor != nil {
-		query += fmt.Sprintf(" AND (created_at, job_id) < ($%d, $%d)", argIdx, argIdx+1)
+		conditions = append(conditions, "(created_at, job_id) < (?, ?)")
 		args = append(args, filter.Cursor.CreatedAt, filter.Cursor.JobID)
-		argIdx += 2
+	}
+
+	// Build the query
+	query := `
+		SELECT 
+			job_id, idempotency_key, user_id, job_type,
+			payload, status, created_at, updated_at
+		FROM jobs`
+
+	if len(conditions) > 0 {
+		query += " WHERE " + conditions[0]
+		for i := 1; i < len(conditions); i++ {
+			query += " AND " + conditions[i]
+		}
 	}
 
 	// Order by created_at DESC, job_id DESC for consistent pagination
 	query += " ORDER BY created_at DESC, job_id DESC"
 
 	// Fetch one extra to determine if there are more results
-	query += fmt.Sprintf(" LIMIT $%d", argIdx)
+	query += " LIMIT ?"
 	args = append(args, filter.PageSize+1)
+
+	// Rebind query for PostgreSQL ($1, $2, etc.)
+	query = s.db.Rebind(query)
 
 	var jobs []model.Job
 	err := s.db.SelectContext(ctx, &jobs, query, args...)
