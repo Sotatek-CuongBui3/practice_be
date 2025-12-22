@@ -18,7 +18,7 @@ func DecodeJobCursor(cursorStr string) (*storage.JobCursor, error) {
 	// Decode from base64
 	decoded, err := base64.StdEncoding.DecodeString(cursorStr)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("decode cursor failed")
 	}
 
 	// Further decoding logic to parse decoded string into storage.JobCursor

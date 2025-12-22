@@ -55,8 +55,8 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		JobType:        req.JobType,
 		Payload:        req.Payload,
 		Status:         "PENDING",
-		CreatedAt:      time.Now(),
-		UpdatedAt:      time.Now(),
+		CreatedAt:      time.Now().UTC(),
+		UpdatedAt:      time.Now().UTC(),
 	}
 
 	// 3. Create job record in database
