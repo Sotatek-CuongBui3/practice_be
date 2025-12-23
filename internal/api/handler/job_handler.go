@@ -92,7 +92,7 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		)
 
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"error":   "Failed to publish job",
+			"error": "Failed to publish job",
 		})
 		return
 	}

@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log/slog"
+	"math"
 	"time"
 
 	amqp "github.com/rabbitmq/amqp091-go"
@@ -328,8 +329,10 @@ func (c *Client) PublishWithRetry(ctx context.Context, body []byte, contentType 
 		lastErr = err
 
 		if attempt < maxRetries {
-			// Calculate exponential backoff delay
-			backoffDelay := time.Duration(float64(baseDelay) * float64(uint(1)<<uint(attempt)))
+			// Calculate exponential backoff delay using configured multiplier
+			// backoff = baseDelay * (backoffMult ^ attempt)
+			// e.g., with baseDelay=100ms, backoffMult=2.0: 100ms, 200ms, 400ms
+			backoffDelay := time.Duration(float64(baseDelay) * math.Pow(backoffMult, float64(attempt)))
 			c.logger.Warn("Failed to publish message to RabbitMQ, retrying...",
 				slog.Int("attempt", attempt+1),
 				slog.Int("max_retries", maxRetries),
