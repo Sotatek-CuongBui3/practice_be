@@ -55,9 +55,9 @@ func (w *Worker) Start(ctx context.Context) error {
 	// 3. Process jobs concurrently
 	// 4. Handle job execution, retries, and status updates
 
-	// Placeholder: Keep worker running until context is cancelled
+	// Placeholder: Keep worker running until context is canceled
 	<-ctx.Done()
-	w.logger.Info("Worker context cancelled, stopping...")
+	w.logger.Info("Worker context canceled, stopping...")
 
 	return nil
 }

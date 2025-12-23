@@ -59,6 +59,7 @@ type RabbitMQConfig struct {
 	Queue      QueueConfig      `yaml:"queue"`
 	RoutingKey string           `yaml:"routing_key"`
 	Connection ConnectionConfig `yaml:"connection"`
+	Publish    PublishConfig    `yaml:"publish"`
 }
 
 // ExchangeConfig holds RabbitMQ exchange configuration
@@ -83,6 +84,13 @@ type ConnectionConfig struct {
 	RetryInterval     time.Duration `yaml:"retry_interval"`
 	Heartbeat         time.Duration `yaml:"heartbeat"`
 	ConnectionTimeout time.Duration `yaml:"connection_timeout"`
+}
+
+// PublishConfig holds RabbitMQ publish retry settings
+type PublishConfig struct {
+	RetryAttempts     int           `yaml:"retry_attempts"`
+	RetryInterval     time.Duration `yaml:"retry_interval"`
+	BackoffMultiplier float64       `yaml:"backoff_multiplier"`
 }
 
 // LoggingConfig holds logging configuration

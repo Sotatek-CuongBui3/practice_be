@@ -69,16 +69,33 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		return
 	}
 
-	// 4. Publish message to RabbitMQ (Implement later)
-	// err = h.rabbitClient.Publish(c.Request.Context(), []byte(req.Payload), "application/json")
-	// if err != nil {
-	// 	h.logger.Error("Failed to publish job to RabbitMQ", slog.String("error", err.Error()))
-	// 	c.JSON(http.StatusInternalServerError, gin.H{
-	// 		"error":   "Failed to publish job",
-	// 		"details": err.Error(),
-	// 	})
-	// 	return
-	// }
+	// 4. Publish message to RabbitMQ with retry logic
+	publishPayload := map[string]interface{}{
+		"job_id": job.JobID,
+	}
+
+	publishBytes, err := json.Marshal(publishPayload)
+	if err != nil {
+		h.logger.Error("Failed to marshal publish payload", slog.String("error", err.Error()))
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to prepare job message",
+		})
+		return
+	}
+
+	// Use PublishWithRetry which includes retry logic with exponential backoff from config
+	err = h.rabbitClient.PublishWithRetry(c.Request.Context(), publishBytes, "application/json")
+	if err != nil {
+		h.logger.Error("Failed to publish job to RabbitMQ after retries",
+			slog.String("job_id", job.JobID),
+			slog.String("error", err.Error()),
+		)
+
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error":   "Failed to publish job",
+		})
+		return
+	}
 
 	// 5. Return job response
 	c.JSON(http.StatusCreated, dto.JobDTO{

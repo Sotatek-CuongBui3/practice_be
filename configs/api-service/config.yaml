@@ -41,6 +41,10 @@ rabbitmq:
     retry_interval: 5s
     heartbeat: 10s
     connection_timeout: 30s
+  publish:
+    retry_attempts: 3
+    retry_interval: 100ms
+    backoff_multiplier: 2.0
 
 logging:
   level: debug  # debug, info, warn, error, fatal

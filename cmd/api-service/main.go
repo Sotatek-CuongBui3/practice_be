@@ -198,6 +198,9 @@ func initRabbitMQ(cfg *config.RabbitMQConfig, logger *slog.Logger) (*rabbitmq.Cl
 		RetryInterval:      cfg.Connection.RetryInterval,
 		Heartbeat:          cfg.Connection.Heartbeat,
 		ConnectionTimeout:  cfg.Connection.ConnectionTimeout,
+		PublishRetries:     cfg.Publish.RetryAttempts,
+		PublishRetryDelay:  cfg.Publish.RetryInterval,
+		PublishBackoffMult: cfg.Publish.BackoffMultiplier,
 	}
 
 	return rabbitmq.NewClient(rabbitConfig, logger)

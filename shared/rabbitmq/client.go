@@ -29,6 +29,9 @@ type Config struct {
 	RetryInterval      time.Duration
 	Heartbeat          time.Duration
 	ConnectionTimeout  time.Duration
+	PublishRetries     int
+	PublishRetryDelay  time.Duration
+	PublishBackoffMult float64
 }
 
 // Client represents a RabbitMQ client
@@ -268,4 +271,78 @@ func (c *Client) IsConnected() bool {
 // GetChannel returns the channel for advanced operations
 func (c *Client) GetChannel() *amqp.Channel {
 	return c.channel
+}
+
+// PublishWithRetry publishes a message to RabbitMQ with retry logic and exponential backoff
+func (c *Client) PublishWithRetry(ctx context.Context, body []byte, contentType string) error {
+	if !c.isConnected {
+		return fmt.Errorf("not connected to RabbitMQ")
+	}
+
+	maxRetries := c.config.PublishRetries
+	if maxRetries <= 0 {
+		maxRetries = 3 // default
+	}
+
+	baseDelay := c.config.PublishRetryDelay
+	if baseDelay <= 0 {
+		baseDelay = 100 * time.Millisecond // default
+	}
+
+	backoffMult := c.config.PublishBackoffMult
+	if backoffMult <= 0 {
+		backoffMult = 2.0 // default
+	}
+
+	var lastErr error
+	for attempt := 0; attempt <= maxRetries; attempt++ {
+		err := c.channel.PublishWithContext(
+			ctx,
+			c.config.ExchangeName, // exchange
+			c.config.RoutingKey,   // routing key
+			false,                 // mandatory
+			false,                 // immediate
+			amqp.Publishing{
+				ContentType:  contentType,
+				Body:         body,
+				DeliveryMode: amqp.Persistent, // persistent
+				Timestamp:    time.Now(),
+			},
+		)
+
+		if err == nil {
+			if attempt > 0 {
+				c.logger.Info("Successfully published message to RabbitMQ after retry",
+					slog.Int("attempt", attempt+1),
+					slog.Int("body_size", len(body)),
+				)
+			} else {
+				c.logger.Debug("Message published to RabbitMQ",
+					slog.Int("body_size", len(body)),
+					slog.String("content_type", contentType),
+				)
+			}
+			return nil
+		}
+
+		lastErr = err
+
+		if attempt < maxRetries {
+			// Calculate exponential backoff delay
+			backoffDelay := time.Duration(float64(baseDelay) * float64(uint(1)<<uint(attempt)))
+			c.logger.Warn("Failed to publish message to RabbitMQ, retrying...",
+				slog.Int("attempt", attempt+1),
+				slog.Int("max_retries", maxRetries),
+				slog.Duration("retry_after", backoffDelay),
+				slog.Any("error", err),
+			)
+			time.Sleep(backoffDelay)
+		}
+	}
+
+	c.logger.Error("Failed to publish message to RabbitMQ after all retries",
+		slog.Int("attempts", maxRetries+1),
+		slog.Any("error", lastErr),
+	)
+	return fmt.Errorf("failed to publish message after %d attempts: %w", maxRetries+1, lastErr)
 }
