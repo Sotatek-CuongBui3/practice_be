@@ -54,7 +54,7 @@ func (h *JobHandler) CreateJob(c *gin.Context) {
 		UserID:         req.UserID,
 		JobType:        req.JobType,
 		Payload:        req.Payload,
-		Status:         "PENDING",
+		Status:         domain.JobStatusPending,
 		CreatedAt:      time.Now().UTC(),
 		UpdatedAt:      time.Now().UTC(),
 	}

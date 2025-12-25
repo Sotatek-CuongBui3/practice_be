@@ -60,6 +60,7 @@ type RabbitMQConfig struct {
 	RoutingKey string           `yaml:"routing_key"`
 	Connection ConnectionConfig `yaml:"connection"`
 	Publish    PublishConfig    `yaml:"publish"`
+	Consumer   ConsumerConfig   `yaml:"consumer"`
 }
 
 // ExchangeConfig holds RabbitMQ exchange configuration
@@ -93,6 +94,13 @@ type PublishConfig struct {
 	BackoffMultiplier float64       `yaml:"backoff_multiplier"`
 }
 
+// ConsumerConfig holds RabbitMQ consumer settings
+type ConsumerConfig struct {
+	PrefetchCount int  `yaml:"prefetch_count"`
+	AutoAck       bool `yaml:"auto_ack"`
+	Exclusive     bool `yaml:"exclusive"`
+}
+
 // LoggingConfig holds logging configuration
 type LoggingConfig struct {
 	Level            string `yaml:"level"`
@@ -113,7 +121,6 @@ type AppConfig struct {
 type WorkerConfig struct {
 	Concurrency       int           `yaml:"concurrency"`
 	MaxJobs           int           `yaml:"max_jobs"`
-	PollInterval      time.Duration `yaml:"poll_interval"`
 	JobTimeout        time.Duration `yaml:"job_timeout"`
 	HeartbeatInterval time.Duration `yaml:"heartbeat_interval"`
 	ShutdownTimeout   time.Duration `yaml:"shutdown_timeout"`
@@ -135,7 +142,7 @@ func Load(configPath string) (*Config, error) {
 }
 
 // Validate checks if the configuration is valid
-func (c *Config) Validate() error {
+func (c *Config) ValidateAPIConfig() error {
 	if c.Server.Port < MinPort || c.Server.Port > MaxPort {
 		return fmt.Errorf("invalid server port: %d (must be between %d and %d)", c.Server.Port, MinPort, MaxPort)
 	}
@@ -166,6 +173,31 @@ func (c *Config) Validate() error {
 
 	if c.RabbitMQ.Queue.Name == "" {
 		return fmt.Errorf("rabbitmq queue name is required")
+	}
+
+	return nil
+}
+
+// Make another validation function for worker config
+func (c *Config) ValidateWorkerConfig() error {
+	if c.Worker.Concurrency <= 0 {
+		return fmt.Errorf("worker concurrency must be greater than 0")
+	}
+
+	if c.Worker.MaxJobs <= 0 {
+		return fmt.Errorf("worker max_jobs must be greater than 0")
+	}
+
+	if c.Worker.JobTimeout <= 0 {
+		return fmt.Errorf("worker job_timeout must be greater than 0")
+	}
+
+	if c.Worker.HeartbeatInterval <= 0 {
+		return fmt.Errorf("worker heartbeat_interval must be greater than 0")
+	}
+
+	if c.Worker.ShutdownTimeout <= 0 {
+		return fmt.Errorf("worker shutdown_timeout must be greater than 0")
 	}
 
 	return nil

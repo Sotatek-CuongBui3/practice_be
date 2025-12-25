@@ -10,8 +10,6 @@ worker:
   concurrency: 5
   # Maximum number of jobs to process before restart
   max_jobs: 1000
-  # Interval between polling for jobs (if not using RabbitMQ)
-  poll_interval: 5s
   # Job execution timeout
   job_timeout: 5m
   # Heartbeat interval for job status updates
@@ -55,7 +53,7 @@ rabbitmq:
     connection_timeout: 30s
   consumer:
     # Number of messages to prefetch
-    prefetch_count: 10
+    prefetch_count: 5
     # Auto acknowledge messages
     auto_ack: false
     # Consume exclusively

@@ -48,7 +48,7 @@ func run() error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	if err := cfg.Validate(); err != nil {
+	if err := cfg.ValidateAPIConfig(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
 	}
 

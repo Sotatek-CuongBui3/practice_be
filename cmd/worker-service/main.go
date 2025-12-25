@@ -45,7 +45,7 @@ func run() error {
 		return fmt.Errorf("failed to load config: %w", err)
 	}
 
-	if err := cfg.Validate(); err != nil {
+	if err := cfg.ValidateWorkerConfig(); err != nil {
 		return fmt.Errorf("invalid config: %w", err)
 	}
 
@@ -79,11 +79,14 @@ func run() error {
 
 	// Create worker instance
 	workerInstance := worker.NewWorker(&worker.Config{
-		Logger:       appLogger.Logger,
-		DBClient:     dbClient,
-		RabbitClient: rabbitClient,
-		Concurrency:  cfg.Worker.Concurrency,
-		JobTimeout:   cfg.Worker.JobTimeout,
+		Logger:            appLogger.Logger,
+		DBClient:          dbClient,
+		RabbitClient:      rabbitClient,
+		Concurrency:       cfg.Worker.Concurrency,
+		JobTimeout:        cfg.Worker.JobTimeout,
+		ShutdownTimeout:   cfg.Worker.ShutdownTimeout,
+		PrefetchCount:     cfg.RabbitMQ.Consumer.PrefetchCount,
+		RabbitMQQueueName: cfg.RabbitMQ.Queue.Name,
 	})
 
 	// Create context for graceful shutdown

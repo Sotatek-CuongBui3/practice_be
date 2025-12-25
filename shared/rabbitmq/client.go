@@ -225,6 +225,7 @@ func (c *Client) Consume(consumerTag string) (<-chan amqp.Delivery, error) {
 		false,              // no-wait
 		nil,                // args
 	)
+
 	if err != nil {
 		return nil, fmt.Errorf("failed to consume messages: %w", err)
 	}

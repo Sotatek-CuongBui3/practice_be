@@ -2,87 +2,128 @@ package worker
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
+	"os"
 	"sync"
 	"time"
 
+	"github.com/cuongbtq/practice-be/internal/worker/domain"
+	"github.com/cuongbtq/practice-be/internal/worker/storage"
 	"github.com/cuongbtq/practice-be/shared/postgresql"
 	"github.com/cuongbtq/practice-be/shared/rabbitmq"
 )
 
 // Config holds worker configuration
 type Config struct {
-	Logger       *slog.Logger
-	DBClient     *postgresql.Client
-	RabbitClient *rabbitmq.Client
-	Concurrency  int
-	JobTimeout   time.Duration
+	Logger            *slog.Logger
+	DBClient          *postgresql.Client
+	RabbitClient      *rabbitmq.Client
+	Concurrency       int
+	JobTimeout        time.Duration
+	ShutdownTimeout   time.Duration
+	PrefetchCount     int
+	RabbitMQQueueName string
 }
 
 // Worker represents the background job worker
 type Worker struct {
-	logger       *slog.Logger
-	dbClient     *postgresql.Client
-	rabbitClient *rabbitmq.Client
-	concurrency  int
-	jobTimeout   time.Duration
-	wg           sync.WaitGroup
-	stopChan     chan struct{}
+	workerID          string
+	logger            *slog.Logger
+	storage           *storage.Storage
+	rabbitClient      *rabbitmq.Client
+	concurrency       int
+	jobTimeout        time.Duration
+	shutdownTimeout   time.Duration
+	prefetchCount     int
+	rabbitMQQueueName string
+	wg                sync.WaitGroup
+	stopChan          chan struct{}
+	jobsChan          chan *domain.JobMessage
 }
 
 // NewWorker creates a new worker instance
 func NewWorker(cfg *Config) *Worker {
+	// Generate worker ID using PID
+	workerID := fmt.Sprintf("worker-%d", os.Getpid())
+
+	// Create storage layer
+	storage := storage.NewStorage(cfg.DBClient.GetDB(), cfg.Logger)
+
 	return &Worker{
-		logger:       cfg.Logger,
-		dbClient:     cfg.DBClient,
-		rabbitClient: cfg.RabbitClient,
-		concurrency:  cfg.Concurrency,
-		jobTimeout:   cfg.JobTimeout,
-		stopChan:     make(chan struct{}),
+		workerID:          workerID,
+		logger:            cfg.Logger,
+		storage:           storage,
+		rabbitClient:      cfg.RabbitClient,
+		concurrency:       cfg.Concurrency,
+		jobTimeout:        cfg.JobTimeout,
+		shutdownTimeout:   cfg.ShutdownTimeout,
+		prefetchCount:     cfg.PrefetchCount,
+		rabbitMQQueueName: cfg.RabbitMQQueueName,
+		stopChan:          make(chan struct{}),
+		jobsChan:          make(chan *domain.JobMessage, cfg.Concurrency*2), // Buffered channel
 	}
 }
 
 // Start begins processing jobs
 func (w *Worker) Start(ctx context.Context) error {
 	w.logger.Info("Starting worker",
+		slog.String("worker_id", w.workerID),
 		slog.Int("concurrency", w.concurrency),
 		slog.Duration("job_timeout", w.jobTimeout),
 	)
 
-	// TODO: Phase 2 - Implement job processing logic
-	// 1. Subscribe to RabbitMQ queue
-	// 2. Spawn worker goroutines
-	// 3. Process jobs concurrently
-	// 4. Handle job execution, retries, and status updates
+	// Step 1: Setup RabbitMQ consumer
+	deliveries, err := w.setupConsumer(ctx)
+	if err != nil {
+		return fmt.Errorf("failed to setup consumer: %w", err)
+	}
 
-	// Placeholder: Keep worker running until context is canceled
+	// Step 2: Start message dispatcher goroutine
+	go w.startMessageDispatcher(ctx, deliveries)
+
+	// Step 3: Spawn worker pool goroutines
+	w.spawnWorkerPool(ctx)
+
+	w.logger.Info("Worker started successfully",
+		slog.String("worker_id", w.workerID),
+		slog.Int("worker_count", w.concurrency),
+	)
+
+	// Step 4: Wait for context cancellation
 	<-ctx.Done()
 	w.logger.Info("Worker context canceled, stopping...")
 
 	return nil
 }
 
-// Stop gracefully stops the worker
+// Stop gracefully stops the worker with timeout
 func (w *Worker) Stop() {
-	w.logger.Info("Stopping worker...")
-	close(w.stopChan)
-	w.wg.Wait()
-	w.logger.Info("Worker stopped")
-}
-
-// processJob processes a single job (placeholder)
-func (w *Worker) processJob(ctx context.Context, jobID string) error {
-	w.logger.Info("Processing job",
-		slog.String("job_id", jobID),
+	w.logger.Info("Initiating graceful shutdown...",
+		slog.Duration("timeout", w.shutdownTimeout),
 	)
 
-	// TODO: Phase 2 - Implement job execution logic
-	// 1. Fetch job from database
-	// 2. Update job status to RUNNING
-	// 3. Execute job logic based on job_type
-	// 4. Update job status to COMPLETED/FAILED
-	// 5. Send heartbeat during execution
-	// 6. Handle retries on failure
+	// Signal all workers to stop
+	close(w.stopChan)
 
-	return nil
+	// Wait for workers to finish with timeout
+	done := make(chan struct{})
+	go func() {
+		w.wg.Wait()
+		close(done)
+	}()
+
+	select {
+	case <-done:
+		w.logger.Info("All workers stopped gracefully")
+	case <-time.After(w.shutdownTimeout):
+		w.logger.Warn("Shutdown timeout exceeded, forcing stop",
+			slog.Duration("timeout", w.shutdownTimeout),
+		)
+	}
+
+	// Close jobs channel to signal message dispatcher
+	close(w.jobsChan)
+
+	w.logger.Info("Worker shutdown complete")
 }
